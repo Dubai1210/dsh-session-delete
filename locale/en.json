@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Session Delete",
+    "description": "Adds a Delete button under Archive in the session menu that removes the session and all of its data."
+  }
+}
