@@ -19,13 +19,21 @@ window.__ModuleLoader__.load({
     const NS = "dsh-session-delete";
     const inject = ["slots", "locale", "sessions"];
 
+    const DELETE_URL = "/dsh-session-delete/delete";
+    const INSPECT_URL = "/dsh-session-delete/inspect";
+
     const zh = {
       "menu.deleteSession": "删除会话",
       "delete.confirm.title": "删除此会话？",
       "delete.confirm.desc":
-        "将永久删除「{title}」的全部数据，并删除它在工作区里操作过的文件，无法恢复。",
+        "对话记录会永久删除，它在工作区里留下的过程文件（脚本、下载的工具、临时文件）一并清理；它做出来的成果文件会保留。",
       "delete.confirm.action": "删除",
       "delete.confirm.pending": "正在删除…",
+      "delete.scanning": "正在检查工作区…",
+      "delete.scanFailed": "工作区检查失败，仍可删除会话。",
+      "delete.cleanup.label": "清理 {count} 个过程文件",
+      "delete.cleanup.none": "没有需要清理的过程文件",
+      "delete.keep.label": "保留 {count} 个成果文件（含被修改的文件）",
       "cancel": "取消",
       "close": "关闭"
     };
@@ -34,11 +42,29 @@ window.__ModuleLoader__.load({
       "menu.deleteSession": "Delete session",
       "delete.confirm.title": "Delete this session?",
       "delete.confirm.desc":
-        "Permanently deletes all data of \"{title}\" and removes the workspace files it touched. This cannot be undone.",
+        "The conversation is deleted for good, together with the scaffolding it left in the workspace (scripts, downloaded tools, temp files). Files it produced are kept.",
       "delete.confirm.action": "Delete",
       "delete.confirm.pending": "Deleting…",
+      "delete.scanning": "Checking the workspace…",
+      "delete.scanFailed": "Workspace check failed; the session can still be deleted.",
+      "delete.cleanup.label": "Clean up {count} scaffolding files",
+      "delete.cleanup.none": "Nothing to clean up",
+      "delete.keep.label": "Keep {count} result files (modified files included)",
       "cancel": "Cancel",
       "close": "Close"
+    };
+
+    const listStyle = {
+      margin: "8px 0 0",
+      padding: "6px 8px",
+      maxHeight: 144,
+      overflow: "auto",
+      listStyle: "none",
+      fontFamily: "var(--font-mono, ui-monospace, monospace)",
+      fontSize: 12,
+      lineHeight: 1.6,
+      background: "var(--surface-2, rgba(127,127,127,0.08))",
+      borderRadius: 6
     };
 
     function DeleteSessionMenuItem(props) {
@@ -67,8 +93,25 @@ window.__ModuleLoader__.load({
     }
 
     function DeleteConfirmForm({ request, confirmSessionDelete, onSettle, t }) {
+      const [plan, setPlan] = react.useState(null);
+      const [scanFailed, setScanFailed] = react.useState(false);
+      const [clean, setClean] = react.useState(true);
       const [deleting, setDeleting] = react.useState(false);
       const [error, setError] = react.useState(null);
+
+      react.useEffect(() => {
+        let alive = true;
+        postJson(INSPECT_URL, { sessionId: request.sessionId })
+          .then((payload) => {
+            if (alive) setPlan(payload);
+          })
+          .catch(() => {
+            if (alive) setScanFailed(true);
+          });
+        return () => {
+          alive = false;
+        };
+      }, [request.sessionId]);
 
       const close = () => {
         if (deleting) return;
@@ -78,7 +121,7 @@ window.__ModuleLoader__.load({
       const confirm = () => {
         setDeleting(true);
         setError(null);
-        confirmSessionDelete(request.sessionId)
+        confirmSessionDelete(request.sessionId, clean)
           .then(() => {
             setDeleting(false);
             onSettle();
@@ -89,12 +132,16 @@ window.__ModuleLoader__.load({
           });
       };
 
+      const residue = plan?.residue ?? [];
+      const kept = plan?.keep?.length ?? 0;
+      const scanning = plan === null && !scanFailed;
+
       return jsxs(primitives.Modal, {
         open: true,
         onClose: close,
         closeLabel: t("close"),
         title: t("delete.confirm.title"),
-        description: t("delete.confirm.desc", { title: request.displayTitle }),
+        description: t("delete.confirm.desc"),
         footer: jsxs(Fragment, {
           children: [
             jsx(primitives.Button, {
@@ -107,12 +154,46 @@ window.__ModuleLoader__.load({
               variant: "primary",
               disabled: deleting,
               onClick: confirm,
-              children: t("delete.confirm.action")
+              children: deleting ? t("delete.confirm.pending") : t("delete.confirm.action")
             })
           ]
         }),
         children: [
-          deleting ? jsx("div", { role: "status", children: t("delete.confirm.pending") }) : null,
+          scanning ? jsx("div", { role: "status", children: t("delete.scanning") }) : null,
+          scanFailed ? jsx("div", { children: t("delete.scanFailed") }) : null,
+          plan !== null && residue.length > 0
+            ? jsxs(Fragment, {
+                children: [
+                  jsx("label", {
+                    style: { display: "flex", gap: 8, alignItems: "center", marginTop: 4 },
+                    children: [
+                      jsx("input", {
+                        type: "checkbox",
+                        checked: clean,
+                        disabled: deleting,
+                        onChange: (event) => setClean(event.target.checked)
+                      }),
+                      jsx("span", { children: t("delete.cleanup.label", { count: residue.length }) })
+                    ]
+                  }),
+                  jsx("ul", {
+                    style: listStyle,
+                    children: residue.map((entry) =>
+                      jsx("li", { children: entry.path }, entry.path)
+                    )
+                  })
+                ]
+              })
+            : null,
+          plan !== null && residue.length === 0
+            ? jsx("div", { style: { marginTop: 4 }, children: t("delete.cleanup.none") })
+            : null,
+          plan !== null && kept > 0
+            ? jsx("div", {
+                style: { marginTop: 6, opacity: 0.75 },
+                children: t("delete.keep.label", { count: kept })
+              })
+            : null,
           error !== null ? jsx("div", { role: "alert", children: error }) : null
         ]
       });
@@ -151,8 +232,8 @@ window.__ModuleLoader__.load({
         settleSessionDelete: () => {
           deleteRequest.set(null);
         },
-        confirmSessionDelete: async (sessionId) => {
-          const payload = await postJson("/dsh-session-delete/delete", { sessionId });
+        confirmSessionDelete: async (sessionId, clean) => {
+          const payload = await postJson(DELETE_URL, { sessionId, clean });
           try {
             sessions?.handleSessionRemoved?.(sessionId);
           } catch {}
