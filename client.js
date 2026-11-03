@@ -20,14 +20,14 @@ window.__ModuleLoader__.load({
     const inject = ["slots", "locale", "sessions"];
 
     const zh = {
-      "menu.deleteSession": "鍒犻櫎浼氳瘽",
-      "delete.confirm.title": "鍒犻櫎姝や細璇濓紵",
+      "menu.deleteSession": "删除会话",
+      "delete.confirm.title": "删除此会话？",
       "delete.confirm.desc":
-        "灏嗘案涔呭垹闄ゃ€寋title}銆嶇殑鍏ㄩ儴鏁版嵁锛屽苟鍒犻櫎瀹冨湪宸ヤ綔鍖洪噷鎿嶄綔杩囩殑鏂囦欢锛屾棤娉曟仮澶嶃€?,
-      "delete.confirm.action": "鍒犻櫎",
-      "delete.confirm.pending": "姝ｅ湪鍒犻櫎鈥?,
-      "cancel": "鍙栨秷",
-      "close": "鍏抽棴"
+        "将永久删除「{title}」的全部数据，并删除它在工作区里操作过的文件，无法恢复。",
+      "delete.confirm.action": "删除",
+      "delete.confirm.pending": "正在删除…",
+      "cancel": "取消",
+      "close": "关闭"
     };
 
     const en = {
@@ -36,7 +36,7 @@ window.__ModuleLoader__.load({
       "delete.confirm.desc":
         "Permanently deletes all data of \"{title}\" and removes the workspace files it touched. This cannot be undone.",
       "delete.confirm.action": "Delete",
-      "delete.confirm.pending": "Deleting鈥?,
+      "delete.confirm.pending": "Deleting…",
       "cancel": "Cancel",
       "close": "Close"
     };
