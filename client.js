@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: "dsh-session-delete",
+  id: "@l1vide/dsh-session-delete",
   factory: (require) => {
     const module = { exports: {} };
     const exports = module.exports;
