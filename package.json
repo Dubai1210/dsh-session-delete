@@ -1,7 +1,7 @@
 {
-  "name": "dsh-session-delete",
+  "name": "@l1vide/dsh-session-delete",
   "version": "1.3.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "description": "Delete a DSH session from the session menu: conversation gone, leftover scaffolding files cleaned up, results kept",
   "main": "lib/index.js",
@@ -22,6 +22,27 @@
     "locale/en.json",
     "locale/zh.json"
   ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "session",
+    "session-management",
+    "delete"
+  ],
+  "homepage": "https://github.com/Dubai1210/dsh-session-delete#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dubai1210/dsh-session-delete.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Dubai1210/dsh-session-delete/issues"
+  },
+  "author": "Dubai1210",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"

@@ -65,6 +65,12 @@ DSH 自带的「归档」只是把会话从列表里挪走，文件还在、可�
 
 ## 安装
 
+npm（推荐，插件中心可见「一键安装」）：
+
+```bash
+dsh plugin --profile web add @l1vide/dsh-session-delete
+```
+
 源码安装（GitHub）：
 
 ```bash
