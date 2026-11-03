@@ -1,9 +1,9 @@
 {
   "name": "dsh-session-delete",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
-  "description": "Delete a session and all of its data from the session menu",
+  "description": "Delete a DSH session together with all of its data, plus the workspace files it touched, from the session menu",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
@@ -14,6 +14,7 @@
   },
   "files": [
     "lib/index.js",
+    "lib/transcript.js",
     "client.js",
     "cordis.patch.yml",
     "icon.svg",
