@@ -20,21 +20,23 @@ window.__ModuleLoader__.load({
     const inject = ["slots", "locale", "sessions"];
 
     const zh = {
-      "menu.deleteSession": "删除会话",
-      "delete.confirm.title": "删除此会话？",
-      "delete.confirm.desc": "将永久删除「{title}」的全部数据，无法恢复。",
-      "delete.confirm.action": "删除",
-      "delete.confirm.pending": "正在删除…",
-      "cancel": "取消",
-      "close": "关闭"
+      "menu.deleteSession": "鍒犻櫎浼氳瘽",
+      "delete.confirm.title": "鍒犻櫎姝や細璇濓紵",
+      "delete.confirm.desc":
+        "灏嗘案涔呭垹闄ゃ€寋title}銆嶇殑鍏ㄩ儴鏁版嵁锛屽苟鍒犻櫎瀹冨湪宸ヤ綔鍖洪噷鎿嶄綔杩囩殑鏂囦欢锛屾棤娉曟仮澶嶃€?,
+      "delete.confirm.action": "鍒犻櫎",
+      "delete.confirm.pending": "姝ｅ湪鍒犻櫎鈥?,
+      "cancel": "鍙栨秷",
+      "close": "鍏抽棴"
     };
 
     const en = {
       "menu.deleteSession": "Delete session",
       "delete.confirm.title": "Delete this session?",
-      "delete.confirm.desc": "Permanently deletes all data of \"{title}\". This cannot be undone.",
+      "delete.confirm.desc":
+        "Permanently deletes all data of \"{title}\" and removes the workspace files it touched. This cannot be undone.",
       "delete.confirm.action": "Delete",
-      "delete.confirm.pending": "Deleting…",
+      "delete.confirm.pending": "Deleting鈥?,
       "cancel": "Cancel",
       "close": "Close"
     };
@@ -56,20 +58,23 @@ window.__ModuleLoader__.load({
       const { useDeleteRequest, settleSessionDelete, confirmSessionDelete, t } = props;
       const request = useDeleteRequest((pending) => pending);
       if (request === null) return null;
-      return jsx(
-        DeleteConfirmForm,
-        { request, confirmSessionDelete, onSettle: settleSessionDelete, t },
-        request.sessionId
-      );
+      return jsx(DeleteConfirmForm, {
+        request,
+        confirmSessionDelete,
+        onSettle: settleSessionDelete,
+        t
+      });
     }
 
     function DeleteConfirmForm({ request, confirmSessionDelete, onSettle, t }) {
       const [deleting, setDeleting] = react.useState(false);
       const [error, setError] = react.useState(null);
+
       const close = () => {
         if (deleting) return;
         onSettle();
       };
+
       const confirm = () => {
         setDeleting(true);
         setError(null);
@@ -83,6 +88,7 @@ window.__ModuleLoader__.load({
             setError(reason instanceof Error ? reason.message : String(reason));
           });
       };
+
       return jsxs(primitives.Modal, {
         open: true,
         onClose: close,
@@ -112,6 +118,24 @@ window.__ModuleLoader__.load({
       });
     }
 
+    async function postJson(path, body) {
+      const response = await fetch(path, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        cache: "no-store",
+        body: JSON.stringify(body)
+      });
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch {}
+      if (!response.ok || payload?.ok === false) {
+        throw new Error(payload?.error || `HTTP ${response.status}`);
+      }
+      return payload;
+    }
+
     function apply(ctx) {
       const sessions = ctx.get("sessions", false);
       const deleteRequest = createSnapshotStore(null);
@@ -128,20 +152,7 @@ window.__ModuleLoader__.load({
           deleteRequest.set(null);
         },
         confirmSessionDelete: async (sessionId) => {
-          const response = await fetch("/dsh-session-delete/delete", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            credentials: "same-origin",
-            cache: "no-store",
-            body: JSON.stringify({ sessionId })
-          });
-          let payload = null;
-          try {
-            payload = await response.json();
-          } catch {}
-          if (!response.ok || payload?.ok === false) {
-            throw new Error(payload?.error || `HTTP ${response.status}`);
-          }
+          const payload = await postJson("/dsh-session-delete/delete", { sessionId });
           try {
             sessions?.handleSessionRemoved?.(sessionId);
           } catch {}
