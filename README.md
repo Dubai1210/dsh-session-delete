@@ -19,8 +19,9 @@ DSH 自带的「归档」只是把会话从列表里挪走，文件还在、可�
 | --- | --- |
 | 对话记录 | `~/.dsh/sessions/<project>/<session-id>/` 整目录删除（`session.v4.jsonl.zstd` 等世代日志） |
 | 投影缓存 | `storages/session_projcache` 里该会话的行（含投影后的消息正文） |
+| 上下文洞察缓存 | `storages/dsh-context/overview-cache.v1.json` 里该会话的条目，否则「上下文洞察」仍能列出它 |
 | 工作区里的过程残留 | 该会话新建的脚本、下载的工具、临时文件和脚手架目录，逐个 `rm`，随后清掉因此变空的目录（不越过会话 `cwd`） |
-| 正在运行的 agent | `cancel({kind:"user"})` + `agent.scope.dispose()`，释放日志文件句柄 |
+| 正在运行的 agent | 先 `workspace/session-stop`（回退 `cancel({kind:"user"})` + `agent.scope.dispose()`），再等 350 ms 让最后一次 flush 落盘，避免删完立刻被重建 |
 | 工作区归属 | 从每个工作区记录的 `sessionIds` 中 `detachSession` |
 | 归档 / 置顶集合 | 全局 `archivedSessionIds`、`pinnedSessionIds` 中移除 |
 | 客户端列表 | `ctx.emit("api-session/removed", id)` → 所有窗口实时移除该行 |
@@ -120,14 +121,12 @@ bundle 插件，两半：
 1. `lib/transcript.js` 读转录日志（多帧 zstd）拿出该会话碰过的工作区文件
 2. `lib/classify.js` 把它分成「保留 / 残留」两堆（有 `present`、末尾回复、git 仓库、扩展名等信号）
 3. 只对「残留」逐个 `rm`，再清空目录
-4. 停活 agent 并释放文件句柄
-5. `sessionPersistence.locate({cwd, id})` 定位日志文件，`rm -r` 其所在会话目录
-6. `storageDomain.get("session_projcache").table("sessions").delete(id)` 清投影缓存行
-7. 遍历 `workspaceRegistry.list()`，逐个 `entity.detachSession(id)`
-8. `unarchiveSession(id)` + `unpinSession(id)` 清全局集合
-9. `ctx.emit("api-session/removed", id)` 通知所有客户端
+4. 停活：`ctx.parallel("workspace/session-stop", {sessionId})`，失败则回退 `agent.cancel()` + `scope.dispose()`；随后 `sleep(350)` 等 flush 落盘
+5. 清索引：`session_projcache` 行、`dsh-context` overview 缓存条目、每个工作区的 `detachSession`、`unarchiveSession` + `unpinSession`
+6. 定位会话目录并删除：`stat(id).location.path` → `locate({cwd,id})` → 扫 `<root>/*/<id>`，三级回退；`rm -r` 带 3 次重试（Windows 反病毒/索引占用）
+7. 只有目录真的删掉后才 `ctx.emit("api-session/removed", id)`
 
-每一步独立 try/catch，单步失败不影响其余步骤；返回值 `{ok, live, removedFiles, cacheRows, headerFound, workspace:{removed,kept,failed,cwd}}` 便于排查。
+会话元数据走 `sessionPersistence.stat(id)`（冷会话也能查到），查不到时返回 **404 + `{ok:false, error:"session not found"}`**，客户端显示「删除失败」而不是假装成功。返回值 `{ok, live, stopped, removedFiles, cacheRows, contextCacheDropped, headerFound, workspace:{removed,kept,failed,cwd}, error}`。
 
 文件归属解析在 `lib/transcript.js`：会话日志是**多帧 zstd**（每个追加批次一帧），一次性 `zstdDecompressSync` 只能解出第一帧，所以这里先按 frame header / block header 走一遍结构定位所有完整帧再逐帧解压；然后扫描 `tool/call` 事件，按工具名取路径参数（`path` / `file_path` / `target_file`，`apply_patch` 走 `*** Update File:` 行），用会话 `cwd` 规整并拒绝越界路径。
 

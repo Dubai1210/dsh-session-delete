@@ -1,6 +1,6 @@
 {
   "name": "@l1vide/dsh-session-delete",
-  "version": "1.3.0",
+  "version": "1.3.4",
   "private": false,
   "type": "module",
   "description": "Delete a DSH session from the session menu: conversation gone, leftover scaffolding files cleaned up, results kept",
@@ -15,7 +15,6 @@
   "files": [
     "lib/index.js",
     "lib/transcript.js",
-    "lib/classify.js",
     "client.js",
     "cordis.patch.yml",
     "icon.svg",
