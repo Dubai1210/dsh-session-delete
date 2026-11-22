@@ -334,18 +334,55 @@ window.__ModuleLoader__.load({
 
       ctx.effect(() => ctx.locale.register(NS, { zh, en }), "dsh-session-delete: dictionaries");
 
-      ctx.slots.inject("sidebar.workspaces.session.menu.item", function* () {
-        yield ctx.slots.register(
-          {
-            name: "sidebar.workspaces.session.menu.item",
-            id: "session-delete",
-            order: 410,
-            locale: NS,
-            inject: deleteMenuItemInjected
-          },
-          DeleteSessionMenuItem
+      // DSH 0.2.2 moved the built-in session rows onto ctx.contextMenus and renders
+      // the built-in "Archive session" last (order 600, afterContent). Registering
+      // there keeps this row directly under it; older DSH builds keep the legacy slot.
+      const contextMenus = ctx.get?.("contextMenus", false);
+
+      if (contextMenus !== undefined && typeof contextMenus.register === "function") {
+        const t = ctx.locale.bind(NS);
+        ctx.slots.inject("contextMenu.icon", function* () {
+          yield ctx.slots.register(
+            { name: "contextMenu.icon", key: "session.delete" },
+            primitives.IconTrashOutlineRegular
+          );
+        });
+        ctx.effect(
+          () =>
+            contextMenus.register({
+              id: "session.delete",
+              target: "session",
+              order: 650,
+              resolve: ({ sessionId, displayTitle }) => [
+                {
+                  id: "delete",
+                  label: t("menu.deleteSession"),
+                  icon: { key: "session.delete" },
+                  danger: true,
+                  separatorBefore: true,
+                  afterContent: true,
+                  run: () => {
+                    deleteRequest.set({ sessionId, displayTitle });
+                  }
+                }
+              ]
+            }),
+          "dsh-session-delete: session menu action"
         );
-      });
+      } else {
+        ctx.slots.inject("sidebar.workspaces.session.menu.item", function* () {
+          yield ctx.slots.register(
+            {
+              name: "sidebar.workspaces.session.menu.item",
+              id: "session-delete",
+              order: 410,
+              locale: NS,
+              inject: deleteMenuItemInjected
+            },
+            DeleteSessionMenuItem
+          );
+        });
+      }
 
       ctx.slots.inject("shell.overlay", function* () {
         yield ctx.slots.register(
